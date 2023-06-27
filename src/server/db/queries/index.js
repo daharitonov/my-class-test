@@ -40,7 +40,7 @@ function getLessons(data) {
     const lessonsAdditional = knex('lessons as t2')
         .select(
             knex.raw(
-                't2.*, json_agg(DISTINCT teachers) as teachers, json_agg(DISTINCT students) as students, count(distinct lesson_students.visit) as "visitCount"'
+                't2.*, json_agg(DISTINCT teachers) as teachers, json_agg(DISTINCT lesson_students) as "lessonStudents",  json_agg(DISTINCT students) as students'
             ),
         )
         .innerJoin(lessons, 't1.id', 't2.id')
@@ -54,7 +54,7 @@ function getLessons(data) {
 }
 
 async function createLessons(data) {
-    const maxCnt = 300;
+    const maxCnt = data.lessonsCount || 300;
     const lastDate = data.lastDate || addYears(data.firstDate, 1);
     const insertData = [...Array(366).keys()]
         .map( d => addDays(data.firstDate, d) )
@@ -66,15 +66,17 @@ async function createLessons(data) {
                 title: data.title,
             }
         })
-    
+    if (insertData.length) {
         const trxProvider = knex.transactionProvider();
         const trx = await trxProvider();
         const ids = await trx('lessons').insert(insertData, 'id');
         const insertDataLessonTeachers = ids.map( lessonId => data.teacherIds.map( teacherId =>  { return {lesson_id: lessonId, teacher_id: teacherId} }) ).flat();
         await trx('lesson_teachers').insert(insertDataLessonTeachers);
         await trx.commit();
+        return ids;
+    } else 
+        return [];
         
-    return ids;
 }
 
 module.exports = {

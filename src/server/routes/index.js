@@ -19,7 +19,13 @@ router.get('/', async (ctx) => {
   if (res.success)
   {
     const lessons = await queries.getLessons(res.data);
-    ctx.body = lessons;
+    ctx.body = lessons.map(lesson => {
+      const lessonStudents = lesson.lessonStudents;
+
+      return { ...lesson, lessonStudents: undefined, visitCount: lessonStudents.filter( ls => ls?.visit ).length,  students: [...lesson.students.map(student => {
+        return {...student, visit: !!lessonStudents.filter( ls => ls?.student_id === student?.id && ls?.visit).length  }
+      })] }
+    });
   }
   else {
     ctx.status = 400;
